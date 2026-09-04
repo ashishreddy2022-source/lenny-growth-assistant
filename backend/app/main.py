@@ -2,7 +2,7 @@
 main.py — FastAPI application entry point for The Lenny Growth Assistant.
 
 Features:
-- Async lifespan event management (DB pool init/shutdown, corpus metadata validation)
+- Async lifespan event management (DB pool init/shutdown, auto schema init, corpus metadata validation)
 - Permissive CORS for local Next.js frontend communication
 - Standardized error handling and health probes
 - Routers for chat (SSE), sessions, and health
@@ -11,6 +11,7 @@ Features:
 from contextlib import asynccontextmanager
 import logging
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, status
@@ -30,19 +31,48 @@ logging.basicConfig(
 )
 logger = logging.getLogger("main")
 
+# Path to schema file (relative to this file's location in backend/app/)
+_SCHEMA_PATH = Path(__file__).parent.parent / "db" / "schema.sql"
+
+
+async def _init_schema(pool) -> None:
+    """
+    Auto-initialize database schema on first boot.
+    Reads schema.sql and runs it idempotently (all statements use IF NOT EXISTS).
+    Safe to run on every startup — existing tables/indexes are never dropped.
+    """
+    if not _SCHEMA_PATH.exists():
+        logger.warning("schema.sql not found at %s — skipping auto-init", _SCHEMA_PATH)
+        return
+
+    schema_sql = _SCHEMA_PATH.read_text(encoding="utf-8")
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(schema_sql)
+        logger.info("Database schema initialized successfully from %s", _SCHEMA_PATH)
+    except Exception as exc:
+        logger.error("Schema auto-init failed: %s", exc, exc_info=True)
+        raise
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Application lifespan handler.
-    Initializes DB pool, checks corpus metadata, and registers the retriever.
+    Initializes DB pool, auto-creates schema, checks corpus metadata, registers retriever.
     """
     logger.info("Booting The Lenny Growth Assistant API...")
 
     # 1. Initialize PostgreSQL connection pool
     pool = await init_db_pool()
     if pool:
-        # Check corpus metadata consistency
+        # 1a. Auto-initialize schema (idempotent — safe on every restart)
+        try:
+            await _init_schema(pool)
+        except Exception as exc:
+            logger.error("Fatal: could not initialize schema: %s", exc)
+
+        # 1b. Check corpus metadata consistency
         try:
             async with pool.acquire() as conn:
                 meta = await conn.fetchrow(
@@ -56,7 +86,7 @@ async def lifespan(app: FastAPI):
                         meta["chunk_count"],
                     )
                 else:
-                    logger.warning("corpus_metadata is empty. Have you run ingestion yet?")
+                    logger.warning("corpus_metadata is empty — no transcripts ingested yet.")
         except Exception as exc:
             logger.warning("Could not probe corpus_metadata at startup: %s", exc)
     else:
@@ -70,6 +100,7 @@ async def lifespan(app: FastAPI):
     # Teardown
     logger.info("Shutting down The Lenny Growth Assistant API...")
     await close_db_pool()
+
 
 
 # Create FastAPI application
