@@ -104,7 +104,7 @@ app.include_router(sessions_router)
 app.include_router(chat_router)
 
 
-@app.get("/", tags=["root"])
+@app.api_route("/", methods=["GET", "HEAD"], tags=["root"])
 async def root():
     return {
         "app": "The Lenny Growth Assistant API",
