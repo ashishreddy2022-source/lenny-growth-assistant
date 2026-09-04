@@ -1,9 +1,9 @@
 # ============================================================
 # Backend Dockerfile — The Lenny Growth Assistant
-# Multi-stage / optimized Python container for FastAPI backend
+# Optimized Python container for FastAPI backend
 # ============================================================
 
-FROM python:3.11-slim AS base
+FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -23,19 +23,22 @@ COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --upgrade pip && \
     pip install -r /app/backend/requirements.txt
 
-# Pre-cache the default embedding model in the image layer
-# Avoids runtime latency and offline network dependency on container boot
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
-
 # Copy backend application source code
 COPY backend /app/backend
 
 WORKDIR /app/backend
 
+# Create non-root user for security
+RUN addgroup --system --gid 1001 appgroup && \
+    adduser --system --uid 1001 --ingroup appgroup appuser && \
+    chown -R appuser:appgroup /app
+
+USER appuser
+
 EXPOSE 8000
 
 # Container healthcheck probing the deep health check endpoint
-HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

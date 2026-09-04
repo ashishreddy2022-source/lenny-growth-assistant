@@ -1,4 +1,14 @@
-# Render Blueprint for The Lenny Growth Assistant Backend
+# Render Blueprint — The Lenny Growth Assistant
+# Deploy: https://dashboard.render.com → New → Blueprint
+# All services are provisioned automatically from this file.
+
+databases:
+  - name: lenny-growth-db
+    plan: free
+    databaseName: lenny_growth
+    user: lenny_app
+    postgresMajorVersion: 16
+
 services:
   - type: web
     name: lenny-growth-backend
@@ -9,14 +19,20 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: lenny-growth-db
+          property: connectionString
       - key: ANTHROPIC_API_KEY
-        sync: false
+        sync: false          # Set manually in Render dashboard
       - key: DEFAULT_LLM_PROVIDER
         value: claude
+      - key: CLAUDE_MODEL
+        value: claude-3-5-sonnet-20241022
       - key: EMBEDDING_MODEL
         value: sentence-transformers/all-MiniLM-L6-v2
       - key: EMBEDDING_DIMENSION
         value: "384"
       - key: LOG_LEVEL
         value: INFO
+      - key: PYTHONUNBUFFERED
+        value: "1"
