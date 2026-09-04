@@ -17,6 +17,7 @@ from app.db.connection import get_db_pool
 from app.db.repository import probe_database_and_vectors
 from app.schemas.chat import ComponentHealth, HealthResponse
 from app.services.llm.claude_provider import ClaudeProvider
+from app.services.llm.gemini_provider import GeminiProvider
 from app.services.llm.ollama_provider import OllamaProvider
 
 router = APIRouter(prefix="/api/health", tags=["health"])
@@ -41,6 +42,10 @@ async def check_health() -> HealthResponse:
     claude_provider = ClaudeProvider()
     claude_raw = await claude_provider.check_health()
 
+    # 4. Probe Gemini provider
+    gemini_provider = GeminiProvider()
+    gemini_raw = await gemini_provider.check_health()
+
     components = {
         "database": ComponentHealth(
             status=db_raw["status"],
@@ -62,15 +67,25 @@ async def check_health() -> HealthResponse:
             details=claude_raw.get("details"),
             meta={"model": claude_raw.get("model")},
         ),
+        "gemini": ComponentHealth(
+            status=gemini_raw["status"],
+            details=gemini_raw.get("details"),
+            meta={"model": gemini_raw.get("model")},
+        ),
     }
 
     # Determine overall status:
-    # If DB is down, system is DOWN
+    # System is DOWN only if DB is down, or vector index + ALL LLM providers are down
+    all_llm_down = (
+        ollama_raw["status"] == "down"
+        and claude_raw["status"] == "down"
+        and gemini_raw["status"] == "down"
+    )
     if db_raw["status"] == "down":
         overall_status = "down"
-    elif vector_raw["status"] == "down" or (ollama_raw["status"] == "down" and claude_raw["status"] == "down"):
+    elif vector_raw["status"] == "down" or all_llm_down:
         overall_status = "down"
-    elif vector_raw["status"] == "degraded" or ollama_raw["status"] == "degraded" or claude_raw["status"] == "down":
+    elif vector_raw["status"] == "degraded":
         overall_status = "degraded"
     else:
         overall_status = "ok"

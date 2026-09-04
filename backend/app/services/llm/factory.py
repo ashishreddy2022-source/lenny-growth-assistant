@@ -4,7 +4,7 @@ factory.py — Dynamic LLM provider factory with fallback routing.
 Implements architecture.md §4 model selection hierarchy:
   1. Request parameter / header (X-LLM-Provider)
   2. DEFAULT_LLM_PROVIDER env variable
-  3. Hardcoded fallback ("ollama")
+  3. Hardcoded fallback ("gemini")
 
 Provides registry for easy extension (e.g. adding openai_provider.py later).
 Caches provider instances to share HTTP connection pools.
@@ -19,6 +19,7 @@ from app.services.llm.base import (
     LLMProviderNotFoundError,
 )
 from app.services.llm.claude_provider import ClaudeProvider
+from app.services.llm.gemini_provider import GeminiProvider
 from app.services.llm.ollama_provider import OllamaProvider
 
 logger = logging.getLogger("llm.factory")
@@ -29,6 +30,8 @@ PROVIDER_REGISTRY: dict[str, Type[LLMProviderInterface]] = {
     "local": OllamaProvider,
     "claude": ClaudeProvider,
     "anthropic": ClaudeProvider,
+    "gemini": GeminiProvider,
+    "google": GeminiProvider,
 }
 
 # Cached singleton instances per provider key
@@ -55,7 +58,7 @@ def resolve_provider_name(requested_name: Optional[str] = None) -> str:
         name = requested_name.strip().lower()
     else:
         env_default = os.getenv("DEFAULT_LLM_PROVIDER", "").strip().lower()
-        name = env_default if env_default else "ollama"
+        name = env_default if env_default else "gemini"
     return name
 
 

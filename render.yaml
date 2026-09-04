@@ -23,11 +23,13 @@ services:
           name: lenny-growth-db
           property: connectionString
       - key: ANTHROPIC_API_KEY
-        sync: false          # Set manually in Render dashboard
+        sync: false          # Optional — only needed if using Claude
+      - key: GEMINI_API_KEY
+        sync: false          # Set this in Render dashboard — free key from aistudio.google.com
       - key: DEFAULT_LLM_PROVIDER
-        value: claude
-      - key: CLAUDE_MODEL
-        value: claude-3-5-sonnet-20241022
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
       - key: EMBEDDING_MODEL
         value: sentence-transformers/all-MiniLM-L6-v2
       - key: EMBEDDING_DIMENSION
