@@ -58,7 +58,7 @@ def resolve_provider_name(requested_name: Optional[str] = None) -> str:
         name = requested_name.strip().lower()
     else:
         env_default = os.getenv("DEFAULT_LLM_PROVIDER", "").strip().lower()
-        name = env_default if env_default else "gemini"
+        name = env_default if env_default else "ollama"
     return name
 
 

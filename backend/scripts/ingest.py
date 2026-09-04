@@ -26,10 +26,14 @@ Usage:
     python backend/scripts/ingest.py --source sample --force
 """
 
+import os
+# Ensure Hugging Face cache directory is always a writable location
+os.environ.setdefault("HF_HOME", "/tmp/huggingface")
+os.environ.setdefault("TRANSFORMERS_CACHE", "/tmp/huggingface")
+
 import argparse
 import hashlib
 import logging
-import os
 import re
 import sys
 import time
@@ -438,15 +442,27 @@ def batch_embed(model: SentenceTransformer, texts: list[str], batch_size: int = 
 # Database operations
 # ---------------------------------------------------------------------------
 
-def get_db_connection():
-    """Create a psycopg3 connection from DATABASE_URL."""
+def get_db_connection(max_retries: int = 5, retry_delay: float = 3.0):
+    """Create a psycopg3 connection from DATABASE_URL with retry logic."""
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
         logger.error("DATABASE_URL not set. See .env.example.")
         sys.exit(1)
-    conn = psycopg.connect(db_url, autocommit=False)
-    register_vector(conn)
-    return conn
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            logger.info("Connecting to database (attempt %d/%d)...", attempt, max_retries)
+            conn = psycopg.connect(db_url, autocommit=False)
+            register_vector(conn)
+            logger.info("Database connection established successfully.")
+            return conn
+        except Exception as exc:
+            if attempt < max_retries:
+                logger.warning("Database connection failed (%s). Retrying in %.1fs...", exc, retry_delay)
+                time.sleep(retry_delay)
+            else:
+                logger.error("Failed to connect to database after %d attempts: %s", max_retries, exc)
+                raise
 
 
 def init_schema(conn):

@@ -8,7 +8,11 @@ FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PYTHONPATH=/app/backend
+    PYTHONPATH=/app/backend \
+    HOME=/root \
+    HF_HOME=/tmp/huggingface \
+    TRANSFORMERS_CACHE=/tmp/huggingface \
+    TORCH_HOME=/tmp/torch
 
 WORKDIR /app
 
@@ -28,12 +32,8 @@ COPY backend /app/backend
 
 WORKDIR /app/backend
 
-# Create non-root user for security
-RUN addgroup --system --gid 1001 appgroup && \
-    adduser --system --uid 1001 --ingroup appgroup appuser && \
-    chown -R appuser:appgroup /app
-
-USER appuser
+# Create writable cache directory
+RUN mkdir -p /tmp/huggingface /tmp/torch && chmod -R 777 /tmp
 
 EXPOSE 8000
 
@@ -42,5 +42,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
 # Automatically ingest sample transcripts on boot before starting the server
-# (Idempotent: skips if already ingested)
-CMD ["sh", "-c", "python scripts/ingest.py --source sample && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# (Idempotent: skips if already ingested; if DB is temporarily unreachable, continues to uvicorn)
+CMD ["sh", "-c", "python scripts/ingest.py --source sample || true; exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]

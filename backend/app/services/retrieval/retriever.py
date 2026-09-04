@@ -13,6 +13,10 @@ import logging
 import os
 from typing import Any, Callable, Optional
 
+# Ensure Hugging Face cache directory is always a writable location
+os.environ.setdefault("HF_HOME", "/tmp/huggingface")
+os.environ.setdefault("TRANSFORMERS_CACHE", "/tmp/huggingface")
+
 import numpy as np
 
 from app.services.retrieval.models import RetrievalResult, RetrievedChunk
