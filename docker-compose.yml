@@ -1,0 +1,90 @@
+# ============================================================
+# The Lenny Growth Assistant — Docker Compose
+# Architecture Spec §7 Deployment Topology
+# ============================================================
+
+services:
+  # ------------------------------------------------------------
+  # Database: PostgreSQL 16 with pgvector extension
+  # ------------------------------------------------------------
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: lenny-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lenny_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lenny_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-lenny_growth}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lenny_app} -d ${POSTGRES_DB:-lenny_growth}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ------------------------------------------------------------
+  # Backend: FastAPI + pgvector + sentence-transformers
+  # ------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: lenny-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lenny_app}:${POSTGRES_PASSWORD:-lenny_secret}@db:5432/${POSTGRES_DB:-lenny_growth}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-384}
+      DEFAULT_LLM_PROVIDER: ${DEFAULT_LLM_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-3-5-sonnet-20241022}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ------------------------------------------------------------
+  # Frontend: Next.js App Router (Production build)
+  # ------------------------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: lenny-frontend
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  # ------------------------------------------------------------
+  # Optional: Containerized Ollama service (opt-in profile)
+  # Run with: docker compose --profile full up
+  # Most reviewers run Ollama natively on host for GPU passthrough
+  # ------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: lenny-ollama
+    profiles: ["full"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  postgres_data:
+    name: lenny_postgres_data
+  ollama_data:
+    name: lenny_ollama_data
