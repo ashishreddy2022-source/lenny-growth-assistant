@@ -12,7 +12,13 @@ ENV PYTHONUNBUFFERED=1 \
     HOME=/root \
     HF_HOME=/tmp/huggingface \
     TRANSFORMERS_CACHE=/tmp/huggingface \
-    TORCH_HOME=/tmp/torch
+    TORCH_HOME=/tmp/torch \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    VECLIB_MAXIMUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1 \
+    TORCH_NUM_THREADS=1
 
 WORKDIR /app
 
@@ -22,10 +28,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Install lightweight CPU-only PyTorch first
+# Prevents pip from downloading 3.5GB of CUDA/NVIDIA wheels and keeps memory usage well under 512MB
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
 # Install Python dependencies
 COPY backend/requirements.txt /app/backend/requirements.txt
-RUN pip install --upgrade pip && \
-    pip install -r /app/backend/requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 # Copy backend application source code
 COPY backend /app/backend

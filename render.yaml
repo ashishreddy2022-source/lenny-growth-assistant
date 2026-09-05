@@ -38,3 +38,5 @@ services:
         value: INFO
       - key: PYTHONUNBUFFERED
         value: "1"
+      - key: PORT
+        value: "8000"

@@ -64,9 +64,15 @@ class TranscriptRetriever:
         if self._custom_embedder:
             return None
         if self._model is None:
+            try:
+                import torch
+                torch.set_num_threads(1)
+                torch.set_num_interop_threads(1)
+            except Exception:
+                pass
             from sentence_transformers import SentenceTransformer
             logger.info("Loading embedding model for retrieval: %s", self.model_name)
-            self._model = SentenceTransformer(self.model_name)
+            self._model = SentenceTransformer(self.model_name, device="cpu")
         return self._model
 
     def embed_query(self, query: str) -> list[float]:

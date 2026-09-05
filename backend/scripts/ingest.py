@@ -408,7 +408,13 @@ def load_embedding_model() -> tuple[SentenceTransformer, str, int]:
     expected_dim = int(os.getenv("EMBEDDING_DIMENSION", "384"))
 
     logger.info("Loading embedding model: %s (expected dim=%d)", model_name, expected_dim)
-    model = SentenceTransformer(model_name)
+    try:
+        import torch
+        torch.set_num_threads(1)
+        torch.set_num_interop_threads(1)
+    except Exception:
+        pass
+    model = SentenceTransformer(model_name, device="cpu")
 
     # Verify dimension
     test_embedding = model.encode(["test"])
@@ -426,8 +432,8 @@ def load_embedding_model() -> tuple[SentenceTransformer, str, int]:
     return model, model_name, actual_dim
 
 
-def batch_embed(model: SentenceTransformer, texts: list[str], batch_size: int = 64) -> np.ndarray:
-    """Embed texts in batches for throughput."""
+def batch_embed(model: SentenceTransformer, texts: list[str], batch_size: int = 16) -> np.ndarray:
+    """Embed texts in batches for throughput, sized conservatively for low RAM."""
     logger.info("Embedding %d chunks (batch_size=%d)...", len(texts), batch_size)
     embeddings = model.encode(
         texts,
@@ -714,6 +720,13 @@ def main():
 
     for chunk, embedding in zip(all_chunks, embeddings):
         chunk.embedding = embedding
+
+    # Immediately release embedding model memory
+    del model
+    del texts
+    del embeddings
+    import gc
+    gc.collect()
 
     # 8. Insert into database
     logger.info("Inserting %d chunks into transcript_chunks...", len(all_chunks))
