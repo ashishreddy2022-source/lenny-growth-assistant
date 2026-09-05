@@ -113,6 +113,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="flex items-center justify-between text-zinc-400">
+          <span>Gemini API</span>
+          {getHealthIcon(health?.components?.gemini?.status)}
+        </div>
+
+        <div className="flex items-center justify-between text-zinc-400">
           <span>Ollama Daemon</span>
           {getHealthIcon(health?.components?.ollama?.status)}
         </div>

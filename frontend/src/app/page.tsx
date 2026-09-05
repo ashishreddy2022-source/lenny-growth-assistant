@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Message, Session, SourceRef, Artifact, HealthStatus } from "@/types";
+import { Message, Session, SourceRef, Artifact, HealthStatus, LLMProvider } from "@/types";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatPane } from "@/components/ChatPane";
 import { ArtifactViewer } from "@/components/ArtifactViewer";
@@ -15,7 +15,7 @@ export default function Home() {
   const [sessionTitle, setSessionTitle] = useState<string>("The Lenny Growth Assistant");
 
   // Provider State
-  const [selectedProvider, setSelectedProvider] = useState<"ollama" | "claude">("ollama");
+  const [selectedProvider, setSelectedProvider] = useState<LLMProvider>("gemini");
 
   // Streaming State
   const [isStreaming, setIsStreaming] = useState(false);

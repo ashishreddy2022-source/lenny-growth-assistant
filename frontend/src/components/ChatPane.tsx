@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Message, SourceRef, HealthStatus, Artifact } from "@/types";
+import { Message, SourceRef, HealthStatus, Artifact, LLMProvider } from "@/types";
 import { ModelSelector } from "./ModelSelector";
 import { CitationChip } from "./CitationChip";
 import ReactMarkdown from "react-markdown";
@@ -25,8 +25,8 @@ interface ChatPaneProps {
   streamingStatus: string | null;
   streamingSources: SourceRef[];
   isStreaming: boolean;
-  selectedProvider: "ollama" | "claude";
-  onSelectProvider: (provider: "ollama" | "claude") => void;
+  selectedProvider: LLMProvider;
+  onSelectProvider: (provider: LLMProvider) => void;
   onSendMessage: (text: string, mode: "default" | "ship30") => void;
   onSelectSource: (source: SourceRef) => void;
   onSelectArtifact: (artifact: Artifact) => void;

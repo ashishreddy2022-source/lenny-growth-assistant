@@ -1,3 +1,5 @@
+export type LLMProvider = "ollama" | "claude" | "gemini";
+
 export interface SourceRef {
   episode: string;
   guest: string;
@@ -61,5 +63,6 @@ export interface HealthStatus {
     vector_index: ComponentHealth;
     ollama: ComponentHealth;
     claude: ComponentHealth;
+    gemini: ComponentHealth;
   };
 }

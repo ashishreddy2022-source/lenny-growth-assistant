@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, Cpu, Cloud, Check } from "lucide-react";
-import { HealthStatus } from "@/types";
+import { ChevronDown, Cpu, Cloud, Sparkles, Check } from "lucide-react";
+import { HealthStatus, LLMProvider } from "@/types";
 
 interface ModelSelectorProps {
-  selectedProvider: "ollama" | "claude";
-  onSelectProvider: (provider: "ollama" | "claude") => void;
+  selectedProvider: LLMProvider;
+  onSelectProvider: (provider: LLMProvider) => void;
   health: HealthStatus | null;
 }
 
@@ -19,6 +19,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   const ollamaStatus = health?.components?.ollama?.status || "down";
   const claudeStatus = health?.components?.claude?.status || "down";
+  const geminiStatus = health?.components?.gemini?.status || "down";
 
   const getStatusBadge = (status: "ok" | "degraded" | "down") => {
     switch (status) {
@@ -31,6 +32,26 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     }
   };
 
+  const providerInfo: Record<LLMProvider, { icon: React.ReactNode; label: string; status: "ok" | "degraded" | "down" }> = {
+    gemini: {
+      icon: <Sparkles className="w-3.5 h-3.5 text-blue-400" />,
+      label: "Gemini Flash (Cloud)",
+      status: geminiStatus,
+    },
+    ollama: {
+      icon: <Cpu className="w-3.5 h-3.5 text-amber-400" />,
+      label: "Ollama (Local)",
+      status: ollamaStatus,
+    },
+    claude: {
+      icon: <Cloud className="w-3.5 h-3.5 text-indigo-400" />,
+      label: "Claude 3.5 (Cloud)",
+      status: claudeStatus,
+    },
+  };
+
+  const current = providerInfo[selectedProvider];
+
   return (
     <div className="relative">
       <button
@@ -38,15 +59,9 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-700/70 hover:border-zinc-600 transition-all text-xs font-medium text-zinc-200 shadow-xs cursor-pointer"
       >
-        {selectedProvider === "ollama" ? (
-          <Cpu className="w-3.5 h-3.5 text-amber-400" />
-        ) : (
-          <Cloud className="w-3.5 h-3.5 text-indigo-400" />
-        )}
-        <span className="font-semibold">
-          {selectedProvider === "ollama" ? "Ollama (Local)" : "Claude 3.5 (Cloud)"}
-        </span>
-        {getStatusBadge(selectedProvider === "ollama" ? ollamaStatus : claudeStatus)}
+        {current.icon}
+        <span className="font-semibold">{current.label}</span>
+        {getStatusBadge(current.status)}
         <ChevronDown className={`w-3 h-3 text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
@@ -58,6 +73,34 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
               Select Inference Provider
             </div>
 
+            {/* Gemini Option (Recommended / Free) */}
+            <button
+              type="button"
+              onClick={() => {
+                onSelectProvider("gemini");
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center justify-between p-2.5 rounded-lg text-left text-xs transition-colors cursor-pointer mt-1 ${
+                selectedProvider === "gemini"
+                  ? "bg-blue-500/10 text-blue-300 font-semibold border border-blue-500/20"
+                  : "hover:bg-zinc-800 text-zinc-300"
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-blue-400 mt-0.5" />
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span>Gemini 1.5 Flash</span>
+                    {getStatusBadge(geminiStatus)}
+                  </div>
+                  <p className="text-[11px] text-zinc-400 font-normal">
+                    Free tier, fast, cloud-hosted
+                  </p>
+                </div>
+              </div>
+              {selectedProvider === "gemini" && <Check className="w-4 h-4 text-blue-400" />}
+            </button>
+
             {/* Ollama Option */}
             <button
               type="button"
@@ -65,7 +108,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 onSelectProvider("ollama");
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center justify-between p-2.5 rounded-lg text-left text-xs transition-colors cursor-pointer ${
+              className={`w-full flex items-center justify-between p-2.5 rounded-lg text-left text-xs transition-colors cursor-pointer mt-1 ${
                 selectedProvider === "ollama"
                   ? "bg-amber-500/10 text-amber-300 font-semibold border border-amber-500/20"
                   : "hover:bg-zinc-800 text-zinc-300"
